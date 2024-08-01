@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkers Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #1d1f20;
+            margin: 0;
+        }
+        #scoreboard {
+            display: flex;
+            justify-content: space-around;
+            width: 400px;
+            margin-bottom: 20px;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 20px;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+        }
+        .square {
+            width: 50px;
+            height: 50px;
+        }
+        .black {
+            background-color: #000;
+        }
+        .red {
+            background-color: #d2691e;
+        }
+        .piece {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: auto;
+            position: relative;
+            top: 5px;
+        }
+        .piece.black {
+            background-color: #333;
+        }
+        .piece.red {
+            background-color: #f00;
+        }
+        .king::after {
+            content: 'K';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-weight: bold;
+        }
+        .highlight {
+            background-color: #76ff03;
+        }
+        .selected {
+            border: 2px solid #ffeb3b;
+        }
+    </style>
+</head>
+<body>
+    <div id="scoreboard">
+        <span id="red-score">Red: 0</span>
+        <span id="black-score">Black: 0</span>
+    </div>
+    <div id="board"></div>
+    <script>
+        const board = document.getElementById('board');
+        const redScoreElement = document.getElementById('red-score');
+        const blackScoreElement = document.getElementById('black-score');
+        let selectedPiece = null;
+        let currentPlayer = 'red';
+        let redScore = 0;
+        let blackScore = 0;
+
+        function createBoard() {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square', (row + col) % 2 === 0 ? 'black' : 'red');
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    board.appendChild(square);
+
+                    if (row < 3 && (row + col) % 2 === 1) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece', 'black');
+                        square.appendChild(piece);
+                    }
+                    if (row > 4 && (row + col) % 2 === 1) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece', 'red');
+                        square.appendChild(piece);
+                    }
+                }
+            }
+        }
+
+        function selectPiece(event) {
+            const piece = event.target.closest('.piece');
+            if (piece && piece.classList.contains(currentPlayer)) {
+                clearHighlights();
+                selectedPiece = piece;
+                piece.parentElement.classList.add('selected');
+                highlightMoves(piece);
+            }
+        }
+
+        function movePiece(event) {
+            const square = event.target.closest('.square');
+            if (selectedPiece && square && square.classList.contains('highlight')) {
+                const fromSquare = selectedPiece.parentElement;
+                square.appendChild(selectedPiece);
+                clearHighlights();
+
+                const fromRow = parseInt(fromSquare.dataset.row);
+                const fromCol = parseInt(fromSquare.dataset.col);
+                const toRow = parseInt(square.dataset.row);
+                const toCol = parseInt(square.dataset.col);
+
+                if (Math.abs(fromRow - toRow) === 2) {
+                    const capturedRow = (fromRow + toRow) / 2;
+                    const capturedCol = (fromCol + toCol) / 2;
+                    const capturedSquare = document.querySelector(`[data-row="${capturedRow}"][data-col="${capturedCol}"]`);
+                    capturedSquare.innerHTML = '';
+
+                    if (currentPlayer === 'red') {
+                        redScore++;
+                        redScoreElement.textContent = `Red: ${redScore}`;
+                    } else {
+                        blackScore++;
+                        blackScoreElement.textContent = `Black: ${blackScore}`;
+                    }
+                }
+
+                if (toRow === 0 && currentPlayer === 'red' || toRow === 7 && currentPlayer === 'black') {
+                    selectedPiece.classList.add('king');
+                }
+
+                currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
+                selectedPiece = null;
+
+                checkWinCondition();
+            }
+        }
+
+        function highlightMoves(piece) {
+            const row = parseInt(piece.parentElement.dataset.row);
+            const col = parseInt(piece.parentElement.dataset.col);
+            const directions = piece.classList.contains('king') ? [[1, 1], [1, -1], [-1, 1], [-1, -1]] :
+                               piece.classList.contains('red') ? [[-1, 1], [-1, -1]] : [[1, 1], [1, -1]];
+
+            directions.forEach(([dr, dc]) => {
+                const targetRow = row + dr;
+                const targetCol = col + dc;
+                const targetSquare = document.querySelector(`[data-row="${targetRow}"][data-col="${targetCol}"]`);
+
+                if (targetSquare && targetSquare.children.length === 0) {
+                    targetSquare.classList.add('highlight');
+                }
+
+                const captureRow = row + 2 * dr;
+                const captureCol = col + 2 * dc;
+                const captureSquare = document.querySelector(`[data-row="${captureRow}"][data-col="${captureCol}"]`);
+                const middleSquare = document.querySelector(`[data-row="${row + dr}"][data-col="${col + dc}"]`);
+
+                if (captureSquare && captureSquare.children.length === 0 && middleSquare && middleSquare.children.length > 0 && middleSquare.firstChild.classList.contains(currentPlayer === 'red' ? 'black' : 'red')) {
+                    captureSquare.classList.add('highlight');
+                }
+            });
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.highlight').forEach(square => square.classList.remove('highlight'));
+            document.querySelectorAll('.selected').forEach(square => square.classList.remove('selected'));
+        }
+
+        function checkWinCondition() {
+            const redPieces = document.querySelectorAll('.piece.red').length;
+            const blackPieces = document.querySelectorAll('.piece.black').length;
+            if (redPieces === 0) {
+                alert('Black wins!');
+                resetGame();
+            }
+            if (blackPieces === 0) {
+                alert('Red wins!');
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            board.innerHTML = '';
+            redScore = 0;
+            blackScore = 0;
+            redScoreElement.textContent = `Red: ${redScore}`;
+            blackScoreElement.textContent = `Black: ${blackScore}`;
+            createBoard();
+        }
+
+        createBoard();
+        board.addEventListener('click', selectPiece);
+        board.addEventListener('click', movePiece);
+    </script>
+</body>
+</html>
